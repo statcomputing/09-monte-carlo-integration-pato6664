@@ -1,0 +1,168 @@
+---
+title: "STAT 5361 -  HW 8"
+author: Patrick Toman^[<patrick.toman@uconn.edu>; Ph.D. student at Department of Statistics,
+  University of Connecticut.]
+date: "`r format(Sys.time(), '%d %B %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,message = F)
+```
+
+
+# Problem 7.5.1
+
+## Part A
+
+```{r,importance_sampling}
+
+fx <- function(x){
+  
+  (5*sqrt(2*pi))^(-1)*(x^2)*exp(-((x-2)^2)/2)
+  
+}
+
+hx <- function(x){
+  
+  x^2
+
+}
+
+gx <- function(x){
+  
+  (sqrt(2*pi)^(-1))*exp(-(x^2)/2)
+  
+  
+}
+
+
+importance_sampler <- function(sample_size,seed_set=1113){
+  
+  set.seed(seed_set)
+  
+  do_1sim <- function(x){
+    
+    xi <- rnorm(x,mean = 0,sd=1)
+    
+    wxi <- fx(xi)/gx(xi)
+    
+    hxi <- hx(xi)
+    
+    hxi*wxi
+    
+  }
+  
+  
+  sim_results <- replicate(sample_size,do_1sim(1))
+  
+  mu_hat <- mean(sim_results)
+  
+  var_hat <- var(sim_results)
+  
+  par_est <- cbind.data.frame('mu_est'= mu_hat,'var_est' = var_hat )
+  
+  
+  return(list('par_est_df'= par_est,'sim'= sim_results))
+}
+
+
+sample_size <- c(1e3,1e4,5e4)
+
+test <- lapply(sample_size, importance_sampler)
+
+
+
+test[[3]]$par_est_df
+
+```
+
+## Part B
+
+
+An improved choice for $g(x)$ would be  $g(x) \sim N(2,1)$
+
+### Proof 
+
+Suppose we have the following 
+
+- $f(x) = \frac{1}{5\sqrt{2\pi}}x^2 e^{-\frac{(x-2)^2}{2}} , -\infty < x < \infty$
+- $g(x) = \frac{1}{\sqrt{2\pi}}e^{-\frac{(x-2)^2}{2}}, -\infty < x < \infty$
+
+Then we derive the \textit{importance} ratio as 
+
+\begin{align*}
+  w(x) & = \frac{f(x)}{g(x)} \\
+       & = \frac{\frac{1}{5\sqrt{2\pi}}x^2 e^{-\frac{(x-2)^2}{2}}}{\frac{1}{\sqrt{2\pi}}e^{-\frac{(x-2)^2}{2}}} , -\infty < x < \infty \\
+       & = \frac{x^2}{5} 
+\end{align*}
+
+Clearly, we satisfy the condition that when $f(x) > 0$ then $g(x) > 0$ since we have $f(x),g(x) > 0 , \forall x \ \in (-\infty,\infty)$. Furthermore, using $g(x) \sim N(2,1)$ has made $g(x)$ much more proportional to $h(x)f(x)$, thus we should now have a vastly improved importance sampler to evaluate $E[h(x)]$. 
+
+## Part C
+
+### Implementation 
+
+We re-implement our importance sampler using $g(x) \sim N(2,1)$ as our new density.
+
+
+```{r,importance_sampler_improved}
+
+
+gx_2 <- function(x){
+  
+  (sqrt(2*pi)^(-1))*exp(-((x-2)^2)/2)
+  
+  
+}
+
+is_improved <- function(sample_size,seed_set=1113){
+  
+  set.seed(seed_set)
+  
+  do_1sim <- function(x){
+    
+    xi <- rnorm(x,mean = 2,sd=1)
+    
+    wxi <- fx(xi)/gx_2(xi)
+    
+    hxi <- hx(xi)
+    
+    hxi*wxi
+    
+  }
+  
+  
+  sim_results <- replicate(sample_size,do_1sim(1))
+  
+  mu_hat <- mean(sim_results)
+  
+  var_hat <- var(sim_results)
+  
+  par_est <- cbind.data.frame('mu_est'= mu_hat,'var_est' = var_hat )
+  
+  
+  return(list('par_est_df'= par_est,'sim'= sim_results))
+}
+
+test_2 <- lapply(sample_size, is_improved)
+
+results_2 <- rbind.data.frame(test_2[[1]]$par_est_df,
+                              test_2[[2]]$par_est_df,
+                              test_2[[3]]$par_est_df)
+results_2 <- cbind.data.frame('n'=sample_size,results_2)
+results_2
+```
+
+
+## Part D
+
+Clearly, we can see that our new importance sampler with $g(x) \sim N(2,1)$ has greatly improved. Note that for all three sample sizes $N \in \{1000,10000,50000\}$ the estimate $\hat{\mu}$ are quite similar with estimates falling approximately around $8.5$. Furthermore, $Var(\hat{\mu})$ has stabilized dramatically in comparison to the original sampler with values ranging from $\approx 159$ to $\approx 212$.
+
+```{r,new_results,echo=F}
+knitr::kable(results_2)
+
+```
+
+
+# Problem 7.5.2 
