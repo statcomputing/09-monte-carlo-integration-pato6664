@@ -151,7 +151,6 @@ results_2 <- rbind.data.frame(test_2[[1]]$par_est_df,
                               test_2[[2]]$par_est_df,
                               test_2[[3]]$par_est_df)
 results_2 <- cbind.data.frame('n'=sample_size,results_2)
-results_2
 ```
 
 
@@ -166,3 +165,147 @@ knitr::kable(results_2)
 
 
 # Problem 7.5.2 
+
+## Part A 
+
+Suppose we have the following 
+
+- $S(0)=1$
+- $r = 0.05$
+- $n=12$
+
+Then we can simulate paths from the geometric brownian motion 
+
+$$\frac{d S(t)}{S(t)} = r dt + \sigma dW(t)$$
+
+using the random walk construction which has steps 
+
+1. Set or sample $X(0)$
+2. sample $Z_1,...,Z_n \overset{iid}{\sim} N(0,1)$
+3. For $i \in \{0,1,\ldots,n-1\}$ compute $D_i = X(t_{i+1}) - X(t_i)$ and set $X(t_{i+1}) = X(t_i) + D_i$
+4. Return $X(0),X(1),\ldots,X(t_n)$
+
+An implementation of this algorithm is given below. 
+
+```{r,brownian_sim}
+library(tidyverse)
+
+
+brownian_sim <- function(s0,r,sigma,end,n){
+  
+  dt <- end/n
+  
+  t <- seq(0,end,by=dt)
+  
+  X <- c(s0,r*dt+sigma*sqrt(dt)*rnorm(n,mean=0,sd=1))
+  
+  Xt <- cumsum(X)
+  
+  return(Xt)
+  
+  
+}
+
+
+```
+
+## Part (B)
+
+```{r,sfunctions,echo=FALSE}
+
+sT <- function(r,end,s0=1,sigma){
+  
+  s0*exp(r - 1/2*(sigma^2))*end + sigma*sqrt(end)*rnorm(1)
+  
+}
+
+sA <- function(path){
+  
+  mean(path)
+  
+  
+  
+} 
+
+sG <- function(path){
+  
+  exp(mean(log(path)))
+  
+}
+
+
+pA <- function(r,end,path,K){
+  
+  exp(-r*end)*max(sA(path=path)-K,0)
+  
+}
+
+pE <- function(r,end,sigma,K){
+  
+  exp(-r*end)*max(sT(r=r,end=end,sigma=sigma)-K,0)
+  
+}
+
+pG <- function(r,end,sigma,K){
+  
+  exp(-r)*max(sG(path)-K,0)
+  
+}
+
+
+r <- 0.05
+
+sigma <- 0.5  
+
+end <- 1 # T
+
+n <- 12 
+
+s0 <- 1
+
+n_sims <- 5000
+
+K_seq <- seq(1.1,1.5,by=.1)
+
+brownian_test <- replicate(n_sims,brownian_sim(s0=s0,r=r,sigma=sigma,end=end,n=n),simplify = F)
+
+names(brownian_test) <- paste0('P',1:length(brownian_test))
+
+#############################################################################################################################
+# Corr(PA,ST)
+#############################################################################################################################
+
+pA_sim_list <- list()
+
+for(i in 1:length(K_seq)){
+  
+  pA_tmp <- c()
+  
+  for(j in 1:n_sims){
+    
+    pA_tmp[j] <- pA(r=0.05,end = 1,path=brownian_test[[j]],K=K_seq[i])
+    
+    
+  }
+  
+  pA_sim_list[[i]] <- pA_tmp
+  
+}
+
+
+sT_sim <- replicate(n_sims,sT(r=r,end = 1,s0=1,sigma = sigma))
+
+pa_st_cov <- c()
+
+for(k in 1:length(K_seq)){
+  
+  pa_st_cov[k] <- cor(unlist(pA_sim_list[[k]]),sT_sim)
+  
+  
+}
+
+#############################################################################################################################
+#############################################################################################################################
+
+
+```
