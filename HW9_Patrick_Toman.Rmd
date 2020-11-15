@@ -15,6 +15,8 @@ knitr::opts_chunk$set(echo = TRUE,message = F)
 
 ## Part A
 
+An implementation of an importance sampler is given below. In addition the results of the sampler with varying sample sizes are given in the table below. Clearly, the estimated means and variances are quite poor with extremely large variances which indicates a better $g(x)$ should likely be chosen.
+
 ```{r,importance_sampling}
 
 fx <- function(x){
@@ -71,9 +73,16 @@ sample_size <- c(1e3,1e4,5e4)
 
 test <- lapply(sample_size, importance_sampler)
 
+results <- rbind.data.frame(test[[1]]$par_est_df,
+                              test[[2]]$par_est_df,
+                              test[[3]]$par_est_df)
+results <- cbind.data.frame('n'=sample_size,results)
 
 
-test[[3]]$par_est_df
+```
+
+```{r,results_initial}
+knitr::kable(results)
 
 ```
 
